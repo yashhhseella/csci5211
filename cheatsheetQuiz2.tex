@@ -19,109 +19,96 @@
 \hrulefill
 
 \section*{1. Streaming \& CDNs}
-\textbf{Chunk:} small video segments (2–10s) encoded at multiple bitrates (ABR: Adaptive Bitrate).  
-\textbf{Manifest (MPD):} text file listing chunk URLs, bitrates, durations.  
-\textbf{Initial playout delay:}
-\[
-d_0 = \max_i [a_i - (a_1 + (i-1)T)]
-\]
-$a_i$: arrival time; $T$: chunk duration. Choose $d_0$ large enough so every chunk arrives before playback.  
-\textbf{CDN (Content Delivery Network):} distributed edge servers storing replicas near users $\Rightarrow$ low RTT, load balancing, redundancy.  
-\textbf{False:} not P2P among users.  
-\textbf{ABR:} client picks next chunk bitrate based on buffer \& throughput.
+\textbf{Chunk:} 2–10s segments (multi-bitrate \textbf{ABR}).  
+\textbf{Manifest (MPD):} lists chunk URLs/bitrates/durations.  
+\textbf{Adaptive Bitrate (ABR):} choose bitrate via buffer + measured throughput.  
+\textbf{Playout delay:}\;
+$\displaystyle d_0=\max_i[a_i-(a_1+(i-1)T)]$;\; $a_i$ arrival, $T$ chunk time.  
+\textbf{Tradeoff:} larger $d_0$ fewer stalls, higher latency.  
+\textbf{CDN:} geo-distributed replicas $\Rightarrow$ lower RTT/latency, higher availability.  
+\textbf{Not P2P:} clients don’t upload to each other.
 
 \section*{2. 802.11 Wireless (Wi-Fi)}
-\textbf{CSMA/CA:} Carrier Sense Multiple Access w/ Collision Avoidance (half-duplex radios $\Rightarrow$ can’t detect while transmitting).  
-\textbf{SIFS $<$ DIFS:} ensures ACK/CTS priority.  
-\textbf{ACK:} sent after SIFS.  
-\textbf{Hidden terminal:} A,C $\not\!\leftrightarrow$ each other but both $\to$ B $\Rightarrow$ collision at B.  
-\textbf{Exposed terminal:} B$\to$A makes C silent even though C$\to$D fine.  
-\textbf{RTS/CTS:} handshake to reduce hidden collisions.  
-Flow: RTS$\to$CTS$\to$DATA$\to$ACK.  
-\textbf{NAV (Network Allocation Vector):} timer that reserves channel for duration.  
-\textbf{RTS/CTS limits:} fails if simultaneous RTS, lost CTS/ACK; use for large frames or high collision rate.
+\textbf{CSMA/CA:} half-duplex radios $\Rightarrow$ no collision detection while TX.  
+\textbf{Flow:} sense $\to$ DIFS $\to$ backoff $\to$ DATA; \textbf{ACK after SIFS}.  
+\textbf{IFS:} SIFS $<$ DIFS (ACK/CTS priority).  
+\textbf{Hidden:} A,C can’t hear each other $\to$ collide at B.  
+\textbf{Exposed:} B$\to$A silences C though C$\to$D OK.  
+\textbf{RTS/CTS:} optional reserve (RTS$\to$CTS$\to$DATA$\to$ACK); sets \textbf{NAV}.  
+\textbf{Limits:} simultaneous RTS, lost CTS/ACK, overhead; use for large frames/hidden nodes.
 
 \section*{3. Reliable Data Transfer (ARQ)}
-\textbf{ARQ:} Automatic Repeat reQuest (resend on loss).  
-\textbf{ACK/NACK:} Acknowledge or Negative Acknowledge.  
-\textbf{GBN (Go-Back-N):}
-\begin{itemize}\itemsep0pt
-\item Window: $W \le 2^k - 1$
-\item Receiver accepts in-order only; cumulative ACK = last in-order pkt
-\item On timeout: retransmit all unacked pkts (base$\ldots$next-1)
-\end{itemize}
-\textbf{SR (Selective Repeat):}
-\begin{itemize}\itemsep0pt
-\item Window: $W \le 2^{k-1}$
-\item Receiver buffers out-of-order; ACKs each pkt
-\item On timeout: retransmit only missing pkt
-\end{itemize}
-\textbf{Lost pkt:}  
-GBN $\Rightarrow$ resend from loss onward.  
-SR $\Rightarrow$ only lost ones resent.  
-\textbf{Lost ACK:} timeout triggers resend (GBN: all, SR: missing).  
-\textbf{Receiver window:} $[next\_expected, next\_expected+W-1]$.  
-\textbf{Cumulative ACK:} last in-order seq num.  
+\textbf{ARQ:} retransmit on loss/corruption. \textbf{ACK/NACK} = success/error.  
+\textbf{Seq space:} $0..2^k-1$ (mod). \textbf{Buffered} = hold out-of-order.
+\textbf{Stop-and-Wait:} utilization $\tfrac{1}{1+2a}$, $a=\tfrac{\text{prop}}{\text{tx}}$.
 
-\section*{4. Ethernet (Wired)}
-\textbf{CSMA/CD:} Carrier Sense Multiple Access w/ Collision Detection.  
-\textbf{Collision detection rule:}
-\[
-t_{frame} \ge 2\tau
-\]
-$\tau$: one-way propagation delay.  
-\textbf{Min frame size:} 64 bytes (512 bit-times @10Mb/s = 51.2$\mu$s).  
-Ensures collision detected before send finishes.  
-\textbf{Slot time:} 512 bit-times = 64B.  
-\textbf{Binary Exponential Backoff:} wait random time $\in[0,2^k-1]\times$slot\_time after collision.
+\textbf{Go-Back-N (GBN):}
+\begin{itemize}\itemsep0pt
+\item $W\le 2^k-1$; receiver in-order only; out-of-order discarded.
+\item Cumulative ACK = last in-order; one timer (oldest). Timeout $\Rightarrow$ resend all unacked.
+\end{itemize}
+
+\textbf{Selective Repeat (SR):}
+\begin{itemize}\itemsep0pt
+\item $W\le 2^{k-1}$; receiver buffers out-of-order; per-packet ACK/timer.
+\item Timeout $\Rightarrow$ resend only missing pkt.
+\end{itemize}
+
+\textbf{If pkt $j$ lost:} GBN resends $j..$;\; SR only $j$.  
+\textbf{Lost ACK:} timeout repairs (GBN burst; SR missing only).  
+\textbf{Receiver window:} $[next\_expected, next\_expected+W-1]$.  
+\textbf{Throughput (rough):} $\approx W/RTT$.
+
+\section*{4. Ethernet (Wired, CSMA/CD)}
+\textbf{Detect while TX:}\; $\displaystyle t_{\text{frame}}\ge 2\tau$ (must still be sending).  
+\textbf{Slot time:} 512 bit-times (64B) @10Mb/s $=51.2\,\mu s$.  
+\textbf{Min frame:} 64B ensures detectability; shorter may miss collision.  
+\textbf{Collision handling:} detect $\to$ jam $\to$ binary exp.\ backoff ($[0,2^k\!-\!1]$ slots, retry cap).  
+\textbf{Modern switched Ethernet:} full-duplex $\Rightarrow$ no collisions.
 
 \section*{5. Wi-Fi vs Ethernet}
-\begin{tabular}{p{1.1cm}p{2.9cm}}
-\textbf{Ethernet:} & CSMA/CD, full-duplex, detects collisions.\\
-\textbf{Wi-Fi:} & CSMA/CA, half-duplex, avoids collisions.\\
+\begin{tabular}{@{}p{1.1cm}p{3.2cm}@{}}
+Ethernet & Wired, CSMA/CD, detect collisions.\\
+Wi-Fi & Wireless, CSMA/CA, avoid collisions.\\
 \end{tabular}\\[2pt]
-Wi-Fi uses ACKs, RTS/CTS, and interframe spacing; Ethernet uses none.  
-Reason Wi-Fi $\neq$ CD: can’t hear while sending (strong self-interference).
+Wi-Fi: ACK + (optional) RTS/CTS; SIFS$<$DIFS. Both use random backoff.
 
-\section*{6. Constants \& Key Formulas}
+\section*{6. Key Formulas \& Constants}
 \begin{itemize}\itemsep0pt
-\item $d_0 = \max_i [a_i - (a_1 + (i-1)T)]$
-\item GBN: $W \le 2^k - 1$ \quad SR: $W \le 2^{k-1}$
-\item Ethernet slot time: 512 bit-times (64B)
-\item 802.11: SIFS $<$ DIFS
-\item TCP ACK num = next expected byte
-\item Hidden = collide @ receiver; Exposed = blocked needlessly
+\item $d_0=\max_i[a_i-(a_1+(i-1)T)]$
+\item GBN: $W\le 2^k-1$\quad SR: $W\le 2^{k-1}$
+\item Ethernet: $t_{\text{frame}}\ge 2\tau$;\; slot $=512$ bit-times $=64$B
+\item 802.11: SIFS $<$ DIFS;\; ACK after SIFS;\; RTS/CTS sets NAV
+\item TCP ACK num $=$ next expected byte
+\item Hidden $\Rightarrow$ collide @ receiver;\; Exposed $\Rightarrow$ needless silence
+\item Stop-and-wait util $=\tfrac{1}{1+2a}$;\; Throughput $\approx W/RTT$
 \end{itemize}
 
 \section*{7. Acronyms \& Definitions}
 \begin{tabular}{@{}p{1.2cm}p{3.5cm}@{}}
-ABR & Adaptive Bitrate (adjusts quality dynamically)\\
-ACK & Acknowledgment (pkt received)\\
-ARQ & Automatic Repeat reQuest (retransmit loss)\\
-CDN & Content Delivery Network (edge caching)\\
-CSMA & Carrier Sense Multiple Access\\
-CSMA/CD & ...with Collision Detection (Ethernet)\\
-CSMA/CA & ...with Collision Avoidance (Wi-Fi)\\
-CTS & Clear to Send (reply to RTS)\\
-DIFS & Distributed InterFrame Space\\
-GBN & Go-Back-N (ARQ type)\\
-MPD & Media Presentation Description (manifest)\\
-NAV & Network Allocation Vector (reserve time)\\
-RTS & Request to Send (ask to send)\\
-SIFS & Short InterFrame Space (ACK/CTS gap)\\
-SR & Selective Repeat (per-packet ACK)\\
-RTT & Round Trip Time (send + reply)\\
-$\tau$ & Propagation delay (one-way)\\
+ABR & Adaptive Bitrate\\
+ACK/NACK & Acknowledge / Negative ACK\\
+ARQ & Automatic Repeat reQuest\\
+CDN & Content Delivery Network\\
+CSMA/CA & Carrier Sense MA / Coll.\ Avoid\\
+CSMA/CD & Carrier Sense MA / Coll.\ Detect\\
+CTS/RTS & Clear / Request To Send\\
+DIFS/SIFS & (Distributed)/(Short) IFS\\
+GBN/SR & Go-Back-N / Selective Repeat\\
+MPD & Media Presentation Description\\
+NAV & Network Allocation Vector\\
+RTT & Round-Trip Time\\
+$\tau$ & One-way propagation delay\\
 $W$ & Window size (in-flight pkts)\\
 \end{tabular}
 
 \section*{8. Quick Recall}
-\textbf{Why 64B min frame?} detect collision within $2\tau$.\\
-\textbf{Why CSMA/CA not CD?} half-duplex radios.\\
-\textbf{RTS/CTS helps?} hidden yes, exposed no.\\
-\textbf{GBN vs SR?} GBN resends all, SR resends missing.\\
-\textbf{Formula for $d_0$?} max arrival–schedule lag.\\
-\textbf{SIFS $<$ DIFS?} ACK/CTS priority.\\
+Why 64B? $\Rightarrow$ detect within $2\tau$. \quad
+Why CA (not CD)? $\Rightarrow$ half-duplex radios.\\
+RTS/CTS helps? $\Rightarrow$ hidden yes, exposed no. \quad
+GBN vs SR? $\Rightarrow$ resend scope + window rule.\\
+Receiver window? $[next..next+W-1]$. \quad
+Throughput? $W/RTT$.
 
 \end{multicols*}
 \end{document}
